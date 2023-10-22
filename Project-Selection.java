@@ -233,124 +233,76 @@ class FlowNetwork {
 }
 
 class Main {
-  // Global bw
-  static BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
-
-  // n is time, m is interval, k is maximum allowed bus number
-  public static int n, m, k;
-
-  // input C[i] for i = 1 to n
-  public static int[] C;
-
-  // OPT[i][j] for i = 1 to n+m-1, j = 1 to k
-  public static long[][] OPT;
-
-  // M[i][j] for i = 1 to n+m-1, j = 1 to k
-  public static int[][] M;
-
-  // flag
-  public static int flag = 0;
-
-  // Regular DP using our recurrance formula
-  public static void dp() throws IOException {
-    for (int i = 1; i <= n; i++) {
-      for (int j = 1; j <= k; j++) {
-        if (i == 1) {
-          OPT[i][j] = (long) 0;
-          M[i][j] = -1;
-        } else if (j == 1) {
-          for (int l = 1; l <= i - 1; l++)
-            OPT[i][j] += (long) C[l] * (i - l);
-          M[i][j] = -1;
-        } else {
-          if (i <= m) {
-            OPT[i][j] = OPT[i][1];
-            M[i][j] = -1;
-          } else {
-            long temp = 0;
-            for (int l = i - m + 1; l <= i - 1; l++)
-              temp += (long) C[l] * (i - l);
-            OPT[i][j] = temp + OPT[i - m][j - 1];
-            M[i][j] = i - m;
-            for (int iprime = i - m - 1; iprime >= 1; iprime--) {
-              temp += (long) C[iprime + 1] * (i - (iprime + 1)); // beware of OBO bugs
-              if (OPT[iprime][j - 1] + temp < OPT[i][j]) { // can set to <=
-                OPT[i][j] = OPT[iprime][j - 1] + temp;
-                M[i][j] = iprime;
-              }
-            }
-          }
-          // Special treatment for the last bus
-          if (i == n) {
-            for (int iprime = n - 1; iprime >= Math.max(1, n - m + 1); iprime--) {
-              int temp = 0;
-              for (int x = iprime + 1; x <= n; x++) {
-                temp += (long) C[x] * (iprime + m - x);
-              }
-              if (OPT[iprime][j - 1] + temp < OPT[n][j]) {
-                flag = 1;
-                OPT[n][j] = OPT[iprime][j - 1] + temp;
-                M[n][j] = iprime;
-              }
-            }
-          }
-        }
-      }
-    }
-    bw.write(Long.toString(OPT[n][k]));
-    bw.newLine();
-  }
-
-  public static void backTrack() throws IOException {
-    List<Integer> A = new ArrayList<>();
-    if (flag == 1)
-      A.add(M[n][k] + m);
-    else
-      A.add(n);
-    int i = n, j = k;
-    while (i > 0 && j > 0 && M[i][j] >= 1) {
-      A.add(M[i][j]);
-      i = M[i][j];
-      j--;
-    }
-    for (int idx = A.size() - 1; idx >= 0; idx--) {
-      bw.write(String.valueOf(A.get(idx)));
-      if (idx > 0) {
-        bw.write(" ");
-      }
-    }
-    bw.newLine();
-  }
-
   public static void main(String[] args) throws IOException {
-
-    // // Record the start time
-    // long startTime = System.nanoTime();
-
+    // Step 1: Read the Input
     BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String[] nmq = br.readLine().split(" ");
+    int n = Integer.parseInt(nmq[0]);
+    int m = Integer.parseInt(nmq[1]);
+    int p = Integer.parseInt(nmq[2]);
 
-    String[] line1 = br.readLine().split(" ");
-    assert line1.length == 3;
-    n = Integer.parseInt(line1[0]);
-    m = Integer.parseInt(line1[1]);
-    k = Integer.parseInt(line1[2]);
+    int[] sales = new int[n];
+    ArrayList<Arc> arcs = new ArrayList<>();
 
-    C = new int[n + 1];
-    OPT = new long[n + 1][k + 1];
-    M = new int[n + 1][k + 1];
+    for (int i = 0; i < n; i++) {
+      sales[i] = Integer.parseInt(br.readLine());
+    }
 
-    String[] line2 = br.readLine().split(" ");
-    assert line2.length == n;
-    for (int i = 1; i <= n; i++) {
-      C[i] = Integer.parseInt(line2[i - 1]);
+    for (int i = 0; i < m; i++) {
+      String[] uvw = br.readLine().split(" ");
+      int u = Integer.parseInt(uvw[0]) - 1;
+      int v = Integer.parseInt(uvw[1]) - 1;
+      int w = Integer.parseInt(uvw[2]);
+      arcs.add(new Arc(u, v, w));
     }
 
     br.close();
 
-    dp();
-    backTrack();
+    // Step 2: Create the Flow Network
+    int source = 2 * n;
+    int sink = 2 * n + 1;
+    ArrayList<Arc> newArcs = new ArrayList<>();
 
-    bw.flush();
-    bw.close();
+    for (int i = 0; i < n; i++) {
+      newArcs.add(new Arc(source, i, sales[i] * p));
+    }
+
+    for (Arc arc : arcs) {
+      newArcs.add(new Arc(arc.u, n + arc.v, arc.c));
+      newArcs.add(new Arc(arc.v, n + arc.u, arc.c));
+    }
+
+    for (int i = 0; i < n; i++) {
+      newArcs.add(new Arc(i, sink, Long.MAX_VALUE));
+    }
+
+    // FlowNetwork flowNetwork = new FlowNetwork(newArcs.size(), 2 * n + 2, source,
+    // sink, newArcs);
+
+    // // Step 3: Use the Dinic algorithm to find the max flow
+    // FlowResults result = flowNetwork.dinic();
+
+    // // Step 4: Run BFS on the residual graph to find all reachable nodes from 's'
+    // ArrayList<Integer> reachable = flowNetwork.bfsResidualGraph(result.resCap,
+    // source); // Modified this line
+
+    // // Step 5: Output the result
+    // BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
+    // long maxProfit = 0;
+    // ArrayList<Integer> stations = new ArrayList<>();
+
+    // for (Integer i : reachable) {
+    // if (i != source && i != sink) {
+    // maxProfit += sales[i];
+    // stations.add(i + 1);
+    // }
+    // }
+
+    // bw.write(maxProfit + " " + stations.size() + "\n");
+    // for (int i = 0; i < stations.size(); i++) {
+    // bw.write(stations.get(i) + (i == stations.size() - 1 ? "\n" : " "));
+    // }
+
+    // bw.close();
   }
 }
