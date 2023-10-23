@@ -233,76 +233,113 @@ class FlowNetwork {
 }
 
 class Main {
-  public static void main(String[] args) throws IOException {
-    // Step 1: Read the Input
-    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-    String[] nmq = br.readLine().split(" ");
-    int n = Integer.parseInt(nmq[0]);
-    int m = Integer.parseInt(nmq[1]);
-    int p = Integer.parseInt(nmq[2]);
 
-    int[] sales = new int[n];
-    ArrayList<Arc> arcs = new ArrayList<>();
+  public static int N, M, n, m;
 
-    for (int i = 0; i < n; i++) {
-      sales[i] = Integer.parseInt(br.readLine());
+  // public static ArrayList<Integer> bfs(FlowResults fR) {
+
+  // return null;
+  // }
+
+  public static ArrayList<Integer> bfs(FlowResults fR) {
+    // Initialize the array to keep track of visited nodes
+    boolean[] visited = new boolean[N];
+
+    // Initialize the queue for BFS and add the starting node (0)
+    Queue<Integer> queue = new LinkedList<>();
+    queue.add(0);
+    visited[0] = true;
+
+    // Initialize the result ArrayList
+    ArrayList<Integer> ans = new ArrayList<>();
+
+    while (!queue.isEmpty()) {
+      int current = queue.poll();
+
+      // Check all adjacent edge indices of the current node
+      for (int edgeIndex : fR.graph.get(current)) {
+        int nextNode = fR.dest.get(edgeIndex);
+        long edgeWeight = fR.resCap.get(edgeIndex);
+
+        // Check if the edge has weight > 0 and nextNode is not visited
+        if (edgeWeight > 0 && !visited[nextNode]) {
+          queue.add(nextNode);
+          visited[nextNode] = true;
+
+          // Check if the index of the reachable node is between 1 and n
+          if (nextNode >= 1 && nextNode <= n) {
+            ans.add(nextNode);
+          }
+        }
+      }
     }
 
-    for (int i = 0; i < m; i++) {
-      String[] uvw = br.readLine().split(" ");
-      int u = Integer.parseInt(uvw[0]) - 1;
-      int v = Integer.parseInt(uvw[1]) - 1;
-      int w = Integer.parseInt(uvw[2]);
-      arcs.add(new Arc(u, v, w));
+    return ans;
+  }
+
+  public static void main(String[] args) throws IOException {
+    final int inf = Integer.MAX_VALUE;
+
+    // total profit without paying cleaning cost
+    long w = 0L;
+
+    // Step 1: Read Inputs and Build Arcs
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+
+    String[] line1 = br.readLine().split(" ");
+    assert line1.length == 3;
+    n = Integer.parseInt(line1[0]); // n is the number of vertices
+    m = Integer.parseInt(line1[1]); // m is the number of edges
+    int p = Integer.parseInt(line1[2]); // p is the multiplier
+    N = 2 + n + m;
+    M = 3 * m + n;
+
+    ArrayList<Arc> arcs = new ArrayList<>(); // arcs store all edges of the input graph G'
+
+    for (int i = 1; i <= n; i++) {
+      int s = Integer.parseInt(br.readLine()) * p;
+      w += s;
+      arcs.add(new Arc(0, i, s));
+    }
+
+    for (int i = 1; i <= m; i++) {
+      String[] uvc = br.readLine().split(" ");
+      // int u = Integer.parseInt(uvc[0]);
+      // int v = Integer.parseInt(uvc[1]);
+      // int c = Integer.parseInt(uvc[2]);
+      arcs.add(new Arc(Integer.parseInt(uvc[0]), n + i, inf)); // edge from u to uv
+      arcs.add(new Arc(Integer.parseInt(uvc[1]), n + i, inf)); // edge from v to uv
+      arcs.add(new Arc(n + i, n + m + 1, Integer.parseInt(uvc[2]))); // edge from uv to t
     }
 
     br.close();
 
     // Step 2: Create the Flow Network
-    int source = 2 * n;
-    int sink = 2 * n + 1;
-    ArrayList<Arc> newArcs = new ArrayList<>();
+    final int source = 0;
+    final int sink = m + n + 1;
 
-    for (int i = 0; i < n; i++) {
-      newArcs.add(new Arc(source, i, sales[i] * p));
+    FlowNetwork fN = new FlowNetwork(arcs.size(), 2 + m + n, source, sink, arcs);
+
+    // Step 3: Use the Dinic algorithm to find the max flow
+    FlowResults fR = fN.dinic();
+
+    // Step 4: Use bfs to get all reachable nodes from s
+    ArrayList<Integer> output = bfs(fR);
+
+    // Step 5: Output the result
+    BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
+
+    bw.write(Integer.toString((int) (w - fR.maxFlow)));
+    bw.write(" ");
+    bw.write(Integer.toString(output.size()));
+    bw.newLine();
+
+    for (int i = 0; i < output.size(); i++) {
+      bw.write(Integer.toString(output.get(i)));
+      if (i != output.size() - 1)
+        bw.write(" ");
     }
 
-    for (Arc arc : arcs) {
-      newArcs.add(new Arc(arc.u, n + arc.v, arc.c));
-      newArcs.add(new Arc(arc.v, n + arc.u, arc.c));
-    }
-
-    for (int i = 0; i < n; i++) {
-      newArcs.add(new Arc(i, sink, Long.MAX_VALUE));
-    }
-
-    // FlowNetwork flowNetwork = new FlowNetwork(newArcs.size(), 2 * n + 2, source,
-    // sink, newArcs);
-
-    // // Step 3: Use the Dinic algorithm to find the max flow
-    // FlowResults result = flowNetwork.dinic();
-
-    // // Step 4: Run BFS on the residual graph to find all reachable nodes from 's'
-    // ArrayList<Integer> reachable = flowNetwork.bfsResidualGraph(result.resCap,
-    // source); // Modified this line
-
-    // // Step 5: Output the result
-    // BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
-    // long maxProfit = 0;
-    // ArrayList<Integer> stations = new ArrayList<>();
-
-    // for (Integer i : reachable) {
-    // if (i != source && i != sink) {
-    // maxProfit += sales[i];
-    // stations.add(i + 1);
-    // }
-    // }
-
-    // bw.write(maxProfit + " " + stations.size() + "\n");
-    // for (int i = 0; i < stations.size(); i++) {
-    // bw.write(stations.get(i) + (i == stations.size() - 1 ? "\n" : " "));
-    // }
-
-    // bw.close();
+    bw.close();
   }
 }
