@@ -332,13 +332,15 @@ class Main {
     bw.write(Integer.toString((int) (w - fR.maxFlow)));
     bw.write(" ");
     bw.write(Integer.toString(output.size()));
-    bw.newLine();
+    // bw.newLine();
+    bw.write("\n");
 
     for (int i = 0; i < output.size(); i++) {
       bw.write(Integer.toString(output.get(i)));
       if (i != output.size() - 1)
         bw.write(" ");
     }
+    bw.write("\n");
 
     bw.close();
   }
